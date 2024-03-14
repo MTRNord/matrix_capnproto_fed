@@ -71,7 +71,7 @@ func main() {
 	server := rpcserver.NewServer()
 
 	client := protocol.MatrixFederation_ServerToClient(server)
-	client.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 16))
+	client.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 17))
 
 	ListenAndServe(context.Background(), "tcp", "localhost:2000", capnp.Client(client))
 }

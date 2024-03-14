@@ -55,7 +55,7 @@ func printServerKeys(ctx context.Context, client protocol.MatrixFederation) erro
 	callback := helpers.NewKeyStreamCallback()
 	callback_client := protocol.StreamCallback_ServerToClient(callback)
 	defer callback_client.Release()
-	callback_client.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 16))
+	callback_client.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 17))
 	keys_future, release := client.GetKeys(ctx, func(p protocol.MatrixFederation_getKeys_Params) error {
 		log.Println("Sending getKeys request...")
 
