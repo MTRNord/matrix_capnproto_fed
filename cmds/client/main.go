@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"capnproto.org/go/capnp/v3/flowcontrol/bbr"
 	"capnproto.org/go/capnp/v3/rpc"
 	"github.com/MTRNord/matrix_protobuf_fed/cmds/client/helpers"
 	protocol "github.com/MTRNord/matrix_protobuf_fed/proto/federation/v1"
@@ -25,12 +26,13 @@ func main() {
 	log.Println("Connected to server on port localhost:2000")
 	log.Println("Creating rpc client...")
 
-	rpc_conn := rpc.NewConn(rpc.NewStreamTransport(conn), nil)
+	rpc_conn := rpc.NewConn(rpc.NewPackedStreamTransport(conn), nil)
 	defer rpc_conn.Close()
 
 	log.Println("Created rpc connection...")
 
 	client := protocol.MatrixFederation(rpc_conn.Bootstrap(context.TODO()))
+	defer client.Release()
 
 	log.Println("Created client...")
 
@@ -52,6 +54,8 @@ func main() {
 func printServerKeys(ctx context.Context, client protocol.MatrixFederation) error {
 	callback := helpers.NewKeyStreamCallback()
 	callback_client := protocol.StreamCallback_ServerToClient(callback)
+	defer callback_client.Release()
+	callback_client.SetFlowLimiter(bbr.NewLimiter(nil))
 	keys_future, release := client.GetKeys(ctx, func(p protocol.MatrixFederation_getKeys_Params) error {
 		log.Println("Sending getKeys request...")
 
