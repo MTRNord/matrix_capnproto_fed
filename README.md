@@ -21,7 +21,8 @@ it should work.
 
 ## Will this be faster?
 
-Maybe. This is to be tested
+Maybe. This is to be tested. However there exists some evidence that it might be faster than json
+by at least up to 20x <https://blog.cloudflare.com/introducing-lua-capnproto-better-serialization-in-lua#performance>
 
 ## What will be signed?
 
