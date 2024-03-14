@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"capnproto.org/go/capnp/v3"
-	"capnproto.org/go/capnp/v3/flowcontrol/bbr"
+	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/rpc"
 	"github.com/MTRNord/matrix_protobuf_fed/rpcserver"
 
@@ -71,7 +71,7 @@ func main() {
 	server := rpcserver.NewServer()
 
 	client := protocol.MatrixFederation_ServerToClient(server)
-	client.SetFlowLimiter(bbr.NewLimiter(nil))
+	client.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 16))
 
 	ListenAndServe(context.Background(), "tcp", "localhost:2000", capnp.Client(client))
 }

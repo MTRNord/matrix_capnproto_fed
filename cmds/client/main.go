@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"capnproto.org/go/capnp/v3/flowcontrol/bbr"
+	"capnproto.org/go/capnp/v3/flowcontrol"
 	"capnproto.org/go/capnp/v3/rpc"
 	"github.com/MTRNord/matrix_protobuf_fed/cmds/client/helpers"
 	protocol "github.com/MTRNord/matrix_protobuf_fed/proto/federation/v1"
@@ -55,7 +55,7 @@ func printServerKeys(ctx context.Context, client protocol.MatrixFederation) erro
 	callback := helpers.NewKeyStreamCallback()
 	callback_client := protocol.StreamCallback_ServerToClient(callback)
 	defer callback_client.Release()
-	callback_client.SetFlowLimiter(bbr.NewLimiter(nil))
+	callback_client.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 16))
 	keys_future, release := client.GetKeys(ctx, func(p protocol.MatrixFederation_getKeys_Params) error {
 		log.Println("Sending getKeys request...")
 
