@@ -1,0 +1,5 @@
+descriptor.pb
+docs
+matrix_protobuf_fed
+bin/
+.mypy_cache
