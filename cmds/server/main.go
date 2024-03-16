@@ -41,7 +41,7 @@ func Serve(lis net.Listener, boot capnp.Client) error {
 			BootstrapClient: boot.AddRef(),
 		}
 		// For each new incoming connection, create a new RPC transport connection that will serve incoming RPC requests
-		transport := rpc.NewPackedStreamTransport(conn)
+		transport := rpc.NewStreamTransport(conn)
 		_ = rpc.NewConn(transport, &opts)
 	}
 }
@@ -67,11 +67,11 @@ func ListenAndServe(ctx context.Context, network, addr string, bootstrapClient c
 }
 
 func main() {
-	log.Println("Starting server on port localhost:2000")
+	log.Println("Starting server on port localhost:8449")
 	server := rpcserver.NewServer()
 
 	client := protocol.MatrixFederation_ServerToClient(server)
 	client.SetFlowLimiter(flowcontrol.NewFixedLimiter(1 << 17))
 
-	ListenAndServe(context.Background(), "tcp", "localhost:2000", capnp.Client(client))
+	ListenAndServe(context.Background(), "tcp", "localhost:8449", capnp.Client(client))
 }

@@ -15,18 +15,18 @@ import (
 // This implements a dummy server for testing purposes of the rough api design especially around signatures
 
 func main() {
-	log.Println("Connecting to server on port localhost:2000")
+	log.Println("Connecting to server on port localhost:8449")
 
-	conn, err := net.Dial("tcp", "localhost:2000")
+	conn, err := net.Dial("tcp", "localhost:8449")
 	if err != nil {
 		log.Fatalln("Failed to connect to server:", err)
 	}
 	defer conn.Close()
 
-	log.Println("Connected to server on port localhost:2000")
+	log.Println("Connected to server on port localhost:8449")
 	log.Println("Creating rpc client...")
 
-	rpc_conn := rpc.NewConn(rpc.NewPackedStreamTransport(conn), nil)
+	rpc_conn := rpc.NewConn(rpc.NewStreamTransport(conn), nil)
 	defer rpc_conn.Close()
 
 	log.Println("Created rpc connection...")
