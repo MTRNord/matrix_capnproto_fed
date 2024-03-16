@@ -22,47 +22,50 @@ import (
  * Contrary to normal go maps this map has a fixed size.
  */
 type Map[Key capnp.Ptr, Value capnp.Ptr] struct {
-	internal_map *protocol_types.Map
+	internalMap *protocol_types.Map
+	maxSize     int32
 }
 
 // NewMap creates a new Map Wrapper
-func NewMap[Key capnp.Ptr, Value capnp.Ptr](s *capnp.Segment) (*Map[Key, Value], error) {
-	internal_map, err := protocol_types.NewMap(s)
+func NewMap[Key capnp.Ptr, Value capnp.Ptr](s *capnp.Segment, maxSize int32) (*Map[Key, Value], error) {
+	internalMap, err := protocol_types.NewMap(s)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Map[Key, Value]{
-		internal_map: &internal_map,
+		internalMap: &internalMap,
+		maxSize:     maxSize,
 	}, nil
 }
 
 // FromMap converts a capnp map to a wrapper
-func FromMap[Key capnp.Ptr, Value capnp.Ptr](m *protocol_types.Map) *Map[Key, Value] {
+func FromMap[Key capnp.Ptr, Value capnp.Ptr](m *protocol_types.Map, maxSize int32) *Map[Key, Value] {
 	return &Map[Key, Value]{
-		internal_map: m,
+		internalMap: m,
+		maxSize:     maxSize,
 	}
 }
 
 // HasEntries returns true if the map has entries
 func (m *Map[Key, Value]) HasEntries() bool {
-	return m.internal_map.HasEntries()
+	return m.internalMap.HasEntries()
 }
 
 // Get a Segment of the internal map
 func (m *Map[Key, Value]) Segment() *capnp.Segment {
-	return m.internal_map.Segment()
+	return m.internalMap.Segment()
 }
 
 // Entries returns the entries of the map as a go map
-func (m *Map[Key, Value]) Entries() (map[Key]Value, error) {
+func (m *Map[Key, Value]) Entries() (map[Key]*Value, error) {
 	// Check if we have entries. If not we return an empty map
-	result := make(map[Key]Value)
-	if !m.internal_map.HasEntries() {
+	result := make(map[Key]*Value)
+	if !m.HasEntries() {
 		return result, nil
 	}
 
-	entries, err := m.internal_map.Entries()
+	entries, err := m.internalMap.Entries()
 	if err != nil {
 		return nil, err
 	}
@@ -74,51 +77,36 @@ func (m *Map[Key, Value]) Entries() (map[Key]Value, error) {
 			return nil, err
 		}
 
-		value, err := entry.Value()
+		value_raw, err := entry.Value()
 		if err != nil {
 			return nil, err
 		}
 
-		result[Key(key)] = Value(value)
+		value := Value(value_raw)
+		result[Key(key)] = &value
 	}
 
 	return result, nil
 }
 
-type ErrMapTooLarge struct{}
-
-func (e ErrMapTooLarge) Error() string {
-	return "Map supplied is larger than the internal map."
-}
-
-// SetEntries sets the entries of the map
-func (m *Map[Key, Value]) SetEntries(entries map[Key]Value) error {
+func (m *Map[Key, Value]) AddEntry(key Key, value Value) error {
 	// Check if we have any entries
-	if !m.internal_map.HasEntries() {
+	if !m.internalMap.HasEntries() {
 		// Allocate enough entries
-		_, err := m.internal_map.NewEntries(int32(len(entries)))
+		_, err := m.internalMap.NewEntries(m.maxSize)
 		if err != nil {
 			return err
 		}
 	}
-
-	// Ensure the map is not larger than the internal map
-	internal_entries, err := m.internal_map.Entries()
+	internalEntries, err := m.internalMap.Entries()
 	if err != nil {
 		return err
 	}
-	if len(entries) > internal_entries.Len() {
-		return ErrMapTooLarge{}
-	}
 
-	// Set the entries. Important: We cant use the Entries() method we defined earlier in this struct as that one is a copy.
-	idx := 0
-	for key, value := range entries {
-		entry := internal_entries.At(idx)
-		entry.SetKey(capnp.Ptr(key))
-		entry.SetValue(capnp.Ptr(value))
-		idx++
+	entry := internalEntries.At(internalEntries.Len() - 1)
+	err = entry.SetKey(capnp.Ptr(key))
+	if err != nil {
+		return err
 	}
-
-	return nil
+	return entry.SetValue(capnp.Ptr(value))
 }

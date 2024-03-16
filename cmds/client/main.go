@@ -37,18 +37,25 @@ func main() {
 	log.Println("Created client...")
 
 	timeoutCtx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
 	err = printServerVersion(timeoutCtx, client)
 	if err != nil {
 		log.Println("Failed to print server version:", err)
 	}
-	cancel()
 
 	timeoutCtx, cancel = context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
 	err = printServerKeys(timeoutCtx, client)
 	if err != nil {
 		log.Println("Failed to print server version:", err)
 	}
-	cancel()
+
+	timeoutCtx, cancel = context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
+	err = printServerVersion(timeoutCtx, client)
+	if err != nil {
+		log.Println("Failed to print server version:", err)
+	}
 }
 
 func printServerKeys(ctx context.Context, client protocol.MatrixFederation) error {

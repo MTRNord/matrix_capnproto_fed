@@ -3,3 +3,5 @@ docs
 matrix_protobuf_fed
 bin/
 .mypy_cache
+*.prof
+*.mprof

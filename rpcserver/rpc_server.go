@@ -50,6 +50,7 @@ func NewServer() RPCMatrixServer {
 }
 
 func (s RPCMatrixServer) GetVersion(ctx context.Context, call protocol.MatrixFederation_getVersion) error {
+	call.Go()
 	res, err := call.AllocResults() // Allocate the results struct
 	if err != nil {
 		return err
@@ -66,14 +67,12 @@ func (s RPCMatrixServer) GetVersion(ctx context.Context, call protocol.MatrixFed
 }
 
 func (s RPCMatrixServer) GetKeys(ctx context.Context, call protocol.MatrixFederation_getKeys) error {
-	_, err := call.AllocResults() // Allocate the results struct
-	if err != nil {
-		return err
-	}
+	call.Go()
 
 	client := call.Args().Callback()
+	defer client.Release()
 
-	err = client.Write(ctx, func(p protocol.StreamCallback_write_Params) error {
+	err := client.Write(ctx, func(p protocol.StreamCallback_write_Params) error {
 		log.Println("Sending server keys metadata response...")
 
 		response, err := types.NewServerKeysResponse(p.Segment())
@@ -120,11 +119,7 @@ func (s RPCMatrixServer) GetKeys(ctx context.Context, call protocol.MatrixFedera
 		if err != nil {
 			return err
 		}
-		verify_keys := FromMap(&verify_keys_raw)
-		verify_keys_entries, err := verify_keys.Entries()
-		if err != nil {
-			return err
-		}
+		verify_keys := FromMap(&verify_keys_raw, 1)
 		key, err := capnp.NewText(verify_keys.Segment(), "placeholder")
 		if err != nil {
 			return err
@@ -135,9 +130,7 @@ func (s RPCMatrixServer) GetKeys(ctx context.Context, call protocol.MatrixFedera
 		if err != nil {
 			return err
 		}
-
-		verify_keys_entries[key.ToPtr()] = data.ToPtr()
-		verify_keys.SetEntries(verify_keys_entries)
+		verify_keys.AddEntry(key.ToPtr(), data.ToPtr())
 
 		verify_keys_bytes, err := capnp.Canonicalize(capnp.Struct(verify_keys_raw))
 		if err != nil {
@@ -157,9 +150,8 @@ func (s RPCMatrixServer) GetKeys(ctx context.Context, call protocol.MatrixFedera
 		return err
 	}
 
-	future, release := client.Done(ctx, nil)
+	_, release := client.Done(ctx, nil)
 	defer release()
-	_, err = future.Struct()
 
 	if err := client.WaitStreaming(); err != nil {
 		return err

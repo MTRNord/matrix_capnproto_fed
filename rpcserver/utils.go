@@ -35,12 +35,7 @@ func SignCapnproto(signingName string, keyID KeyID, privateKey ed25519.PrivateKe
 	if err != nil {
 		return err
 	}
-	signatures_map_wrapper := FromMap(&signatures_map)
-	signatures_map_go, err := signatures_map_wrapper.Entries()
-	if err != nil {
-		return err
-	}
-
+	signatures_map_wrapper := FromMap(&signatures_map, 1)
 	key, err := capnp.NewText(signatures_map_wrapper.Segment(), string(keyID))
 	if err != nil {
 		return err
@@ -50,8 +45,7 @@ func SignCapnproto(signingName string, keyID KeyID, privateKey ed25519.PrivateKe
 	if err != nil {
 		return err
 	}
-	signatures_map_go[key.ToPtr()] = data.ToPtr()
-	signatures_map_wrapper.SetEntries(signatures_map_go)
+	signatures_map_wrapper.AddEntry(key.ToPtr(), data.ToPtr())
 
 	return nil
 }

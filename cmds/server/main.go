@@ -3,8 +3,15 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
+	"fmt"
 	"log"
+	"log/slog"
 	"net"
+	"os"
+	"os/signal"
+	"runtime/pprof"
+	"syscall"
 
 	"capnproto.org/go/capnp/v3"
 	"capnproto.org/go/capnp/v3/flowcontrol"
@@ -32,17 +39,22 @@ func Serve(lis net.Listener, boot capnp.Client) error {
 		// Accept incoming connections
 		conn, err := lis.Accept()
 		if err != nil {
+			conn.Close()
 			return err
 		}
+		defer conn.Close()
 
 		// the RPC connection takes ownership of the bootstrap interface and will release it when the connection
 		// exits, so use AddRef to avoid releasing the provided bootstrap client capability.
 		opts := rpc.Options{
 			BootstrapClient: boot.AddRef(),
+			Logger:          slog.Default(),
 		}
 		// For each new incoming connection, create a new RPC transport connection that will serve incoming RPC requests
 		transport := rpc.NewStreamTransport(conn)
-		_ = rpc.NewConn(transport, &opts)
+		defer transport.Close()
+		rpc_conn := rpc.NewConn(transport, &opts)
+		defer rpc_conn.Close()
 	}
 }
 
@@ -66,7 +78,44 @@ func ListenAndServe(ctx context.Context, network, addr string, bootstrapClient c
 	return err
 }
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var memprofile = flag.String("memprofile", "", "write memory profile to this file")
+var f *os.File
+
 func main() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM) // subscribe to system signals
+	onKill := func(c chan os.Signal) {
+		select {
+		case <-c:
+			fmt.Println("Got killed")
+			pprof.StopCPUProfile()
+			f.Close()
+			if *memprofile != "" {
+				f, err := os.Create(*memprofile)
+				if err != nil {
+					log.Fatal(err)
+				}
+				pprof.WriteHeapProfile(f)
+				f.Close()
+			}
+			os.Exit(0)
+		}
+	}
+
+	// try to handle os interrupt(signal terminated)
+	go onKill(c)
+
 	log.Println("Starting server on port localhost:8449")
 	server := rpcserver.NewServer()
 
